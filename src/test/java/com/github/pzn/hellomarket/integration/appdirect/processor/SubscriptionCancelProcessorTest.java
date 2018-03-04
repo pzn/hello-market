@@ -1,11 +1,11 @@
 package com.github.pzn.hellomarket.integration.appdirect.processor;
 
-import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.USER_NOT_FOUND;
+import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.ACCOUNT_NOT_FOUND;
 import static com.github.pzn.hellomarket.integration.appdirect.event.EventType.SUBSCRIPTION_CANCEL;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -16,9 +16,8 @@ import com.github.pzn.hellomarket.integration.appdirect.event.Account;
 import com.github.pzn.hellomarket.integration.appdirect.event.AppDirectNotification;
 import com.github.pzn.hellomarket.integration.appdirect.event.Marketplace;
 import com.github.pzn.hellomarket.integration.appdirect.event.Payload;
-import com.github.pzn.hellomarket.integration.appdirect.event.User;
-import com.github.pzn.hellomarket.model.entity.AppUser;
-import com.github.pzn.hellomarket.service.AppUserService;
+import com.github.pzn.hellomarket.model.entity.AppOrg;
+import com.github.pzn.hellomarket.repository.AppOrgRepository;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -28,82 +27,61 @@ import org.mockito.runners.MockitoJUnitRunner;
 @RunWith(MockitoJUnitRunner.class)
 public class SubscriptionCancelProcessorTest {
 
-  private static final Long ID = 1L;
-  private static final String CODE = "code";
+  private static final String APPORG_CODE = "apporg_code";
 
   @InjectMocks
   private SubscriptionCancelProcessor processor;
   @Mock
-  private AppUserService appUserService;
+  private AppOrgRepository appOrgRepository;
 
   @Test
-  public void can_process_subscription_cancel() throws Exception {
+  public void can_cancel_subscription() throws Exception {
 
     // Given
-    when(appUserService.findByCode(CODE))
-        .thenReturn(anAppUser(true));
+    AppOrg existingAppOrg = assumeCompanyDoesExist();
 
     // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionCancel(CODE));
+    AppDirectApiResponse response = processor.process(aSubscriptionCancel(APPORG_CODE));
 
     // Verify
     assertThat(response.isSuccess(), is(true));
-    verify(appUserService).findByCode(eq(CODE));
-    verify(appUserService).changeStatus(eq(ID), eq(false));
+    assertThat(response.getAccountIdentifier(), is(APPORG_CODE));
+    assertThat(response.getErrorCode(), is(nullValue()));
+    verify(appOrgRepository).findByCode(eq(APPORG_CODE));
+    verify(appOrgRepository).delete(eq(existingAppOrg));
   }
 
   @Test
-  public void when_user_not_found__should_return_user_not_found_response() throws Exception {
-
-    // Given
-    when(appUserService.findByCode(CODE))
-        .thenReturn(null);
+  public void cannot_cancel_subscription_when_organization_not_found() throws Exception {
 
     // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionCancel(CODE));
+    AppDirectApiResponse response = processor.process(aSubscriptionCancel("unknown_accountIdentifier"));
 
     // Verify
     assertThat(response.isSuccess(), is(false));
-    assertThat(response.getErrorCode(), is(USER_NOT_FOUND));
-    assertThat(response.isSuccess(), is(false));
-    verify(appUserService).findByCode(eq(CODE));
-    verify(appUserService, never()).changeStatus(anyLong(), anyBoolean());
+    assertThat(response.getAccountIdentifier(), is(nullValue()));
+    assertThat(response.getErrorCode(), is(ACCOUNT_NOT_FOUND));
+    verify(appOrgRepository).findByCode(eq("unknown_accountIdentifier"));
+    verify(appOrgRepository, never()).delete(any(AppOrg.class));
   }
 
-//  @Test
-  public void when_user_already_cancelled__should_return_ok() throws Exception {
+  private AppOrg assumeCompanyDoesExist() {
 
-    // Given
-    when(appUserService.findByCode(CODE))
-        .thenReturn(anAppUser(false));
-
-    // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionCancel(CODE));
-
-    // Verify
-    assertThat(response.isSuccess(), is(true));
-    verify(appUserService).findByCode(eq(CODE));
-    verify(appUserService, never()).changeStatus(anyLong(), anyBoolean());
+    AppOrg appOrg = AppOrg.builder().code(APPORG_CODE).build();
+    when(appOrgRepository.findByCode(APPORG_CODE))
+        .thenReturn(appOrg);
+    return appOrg;
   }
 
-  private AppUser anAppUser(boolean isActive) {
-    return AppUser.builder()
-        .id(ID)
-        .code(CODE)
-        .active(isActive)
-        .build();
-  }
+  public AppDirectNotification aSubscriptionCancel(String appOrgCode) {
 
-  public AppDirectNotification aSubscriptionCancel(String code) {
     return AppDirectNotification.builder()
         .type(SUBSCRIPTION_CANCEL)
         .marketplace(Marketplace.builder()
-            .partner("partner")
-            .build())
-        .creator(User.builder().uuid("creator_uuid").build())
+            .partner("partner").build())
         .payload(Payload.builder()
-            .account(Account.builder().accountIdentifier(code).build())
-            .build())
+            .account(Account.builder()
+                .accountIdentifier(appOrgCode).build()).build())
         .build();
   }
 }

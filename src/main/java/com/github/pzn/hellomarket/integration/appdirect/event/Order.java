@@ -15,7 +15,7 @@ public class Order {
   private List<Item> items;
 
   @Data
-  @JsonIgnoreProperties(ignoreUnknown = true)
+  @Builder
   public static class Item {
 
     private String quantity;

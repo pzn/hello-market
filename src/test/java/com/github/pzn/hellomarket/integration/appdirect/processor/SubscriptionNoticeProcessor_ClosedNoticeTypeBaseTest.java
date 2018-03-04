@@ -2,23 +2,23 @@ package com.github.pzn.hellomarket.integration.appdirect.processor;
 
 import static com.github.pzn.hellomarket.integration.appdirect.event.NoticeType.CLOSED;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.github.pzn.hellomarket.integration.appdirect.AppDirectApiResponse;
 import com.github.pzn.hellomarket.integration.appdirect.event.NoticeType;
+import com.github.pzn.hellomarket.model.entity.AppOrg;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.runners.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
-public class SubscriptionNoticeProcessor_ClosedNoticeTypeBaseTest extends
-    SubscriptionNoticeProcessor_BaseTest {
+public class SubscriptionNoticeProcessor_ClosedNoticeTypeBaseTest extends SubscriptionNoticeProcessor_BaseTest {
 
   @Override
   protected NoticeType getNoticeType() {
@@ -26,34 +26,20 @@ public class SubscriptionNoticeProcessor_ClosedNoticeTypeBaseTest extends
   }
 
   @Test
-  public void can_process_subscription_notice_closed_when_user_is_active() throws Exception {
+  public void can_delete_apporg_on_subscription_notice_of_type_closed() throws Exception {
 
     // Given
-    when(appUserService.findByCode(CODE))
-        .thenReturn(anAppUser(true));
+    AppOrg appOrg = assumeCompanyDoesExist(true);
 
     // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionNotice(CODE, getNoticeType()));
+    AppDirectApiResponse response = processor.process(aSubscriptionNotice(APPORG_CODE, getNoticeType()));
 
     // Verify
     assertThat(response.isSuccess(), is(true));
-    verify(appUserService).findByCode(eq(CODE));
-    verify(appUserService).changeStatus(eq(ID), eq(false));
-  }
-
-  @Test
-  public void can_process_subscription_notice_closed_when_user_is_already_disabled() throws Exception {
-
-    // Given
-    when(appUserService.findByCode(CODE))
-        .thenReturn(anAppUser(false));
-
-    // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionNotice(CODE, getNoticeType()));
-
-    // Verify
-    assertThat(response.isSuccess(), is(true));
-    verify(appUserService).findByCode(eq(CODE));
-    verify(appUserService, never()).changeStatus(anyLong(), anyBoolean());
+    assertThat(response.getAccountIdentifier(), is(APPORG_CODE));
+    assertThat(response.getErrorCode(), is(nullValue()));
+    verify(appOrgRepository).findByCode(eq(APPORG_CODE));
+    verify(appOrgRepository).delete(eq(appOrg));
+    verify(appOrgRepository, never()).changeActiveStatus(anyLong(), anyBoolean());
   }
 }

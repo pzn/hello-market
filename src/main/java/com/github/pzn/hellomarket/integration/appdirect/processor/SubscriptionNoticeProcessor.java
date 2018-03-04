@@ -1,14 +1,15 @@
 package com.github.pzn.hellomarket.integration.appdirect.processor;
 
-import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.USER_NOT_FOUND;
+import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.ACCOUNT_NOT_FOUND;
 import static com.github.pzn.hellomarket.integration.appdirect.event.EventType.SUBSCRIPTION_NOTICE;
 
 import com.github.pzn.hellomarket.integration.appdirect.AppDirectApiResponse;
+import com.github.pzn.hellomarket.integration.appdirect.event.Account;
 import com.github.pzn.hellomarket.integration.appdirect.event.AppDirectNotification;
 import com.github.pzn.hellomarket.integration.appdirect.event.EventType;
 import com.github.pzn.hellomarket.integration.appdirect.event.NoticeType;
-import com.github.pzn.hellomarket.model.entity.AppUser;
-import com.github.pzn.hellomarket.service.AppUserService;
+import com.github.pzn.hellomarket.model.entity.AppOrg;
+import com.github.pzn.hellomarket.repository.AppOrgRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -17,43 +18,50 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class SubscriptionNoticeProcessor implements AppDirectNotificationProcessor {
 
-  private AppUserService appUserService;
+  private AppOrgRepository appOrgRepository;
 
   @Autowired
-  public SubscriptionNoticeProcessor(AppUserService appUserService) {
-    this.appUserService = appUserService;
+  public SubscriptionNoticeProcessor(AppOrgRepository appOrgRepository) {
+    this.appOrgRepository = appOrgRepository;
   }
 
   @Override
   public AppDirectApiResponse process(AppDirectNotification notification) throws NotificationProcessorException {
 
-    String code = notification.getPayload().getAccount().getAccountIdentifier();
-    AppUser appUser = appUserService.findByCode(code);
-    if (appUser == null) {
-      log.warn("Cannot process notification for AppUser because account not found! From:{}, code:{}",
-          notification.getMarketplace().getPartner(), code);
+    AppOrg appOrg = getAppOrg(notification.getPayload().getAccount());
+    if (appOrg == null) {
+      log.warn("Organization(marketIdentifier:{}) from partner '{}' attempted to cancel subscription, but not found in database",
+          notification.getPayload().getAccount().getAccountIdentifier(), notification.getMarketplace().getPartner());
+
       return AppDirectApiResponse.builder()
           .success(false)
-          .errorCode(USER_NOT_FOUND)
+          .errorCode(ACCOUNT_NOT_FOUND)
           .build();
     }
 
-    processNotice(notification.getPayload().getType(), appUser);
+    processNotice(notification.getPayload().getType(), appOrg);
 
     return AppDirectApiResponse.builder()
         .success(true)
+        .accountIdentifier(appOrg.getCode())
         .build();
   }
 
-  private void processNotice(NoticeType noticeType, AppUser appUser) {
+  private AppOrg getAppOrg(Account account) {
+    return appOrgRepository.findByCode(account.getAccountIdentifier());
+  }
+
+  private void processNotice(NoticeType noticeType, AppOrg appOrg) {
 
     switch (noticeType) {
       case CLOSED:
+        removeAppOrg(appOrg);
+        break;
       case DEACTIVATED:
-        changeStatus(appUser, false);
+        changeStatus(appOrg, false);
         break;
       case REACTIVATED:
-        changeStatus(appUser, true);
+        changeStatus(appOrg, true);
         break;
       case UPCOMING_INVOICE:
       default:
@@ -61,13 +69,17 @@ public class SubscriptionNoticeProcessor implements AppDirectNotificationProcess
     }
   }
 
-  private void changeStatus(AppUser appUser, boolean newActiveStatus) {
+  private void removeAppOrg(AppOrg appOrg) {
+    appOrgRepository.delete(appOrg);
+  }
 
-    if (appUser.isActive() != newActiveStatus) {
-      appUserService.changeStatus(appUser.getId(), newActiveStatus);
-      log.info("AppUser(code:{}) {}", appUser.getCode(), newActiveStatus ? "enabled" : "disabled");
+  private void changeStatus(AppOrg appOrg, boolean newActiveStatus) {
+
+    if (appOrg.getActive() != newActiveStatus) {
+      appOrgRepository.changeActiveStatus(appOrg.getId(), newActiveStatus);
+      log.info("AppUser(code:{}) as been {}", appOrg.getCode(), newActiveStatus ? "enabled" : "disabled");
     } else {
-      log.info("AppUser(code:{}) already {}", appUser.getCode(), newActiveStatus ? "enabled" : "disabled");
+      log.info("AppUser(code:{}) already {}", appOrg.getCode(), newActiveStatus ? "enabled" : "disabled");
     }
   }
 

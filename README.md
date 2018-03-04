@@ -6,14 +6,6 @@ what is it?
 ===========
 A (dummy) web app integrated with AppDirect, using the [AppDistribution API](https://help.appdirect.com/appdistrib/appdistribution.html).
 
-The webapp can recognize the following [subscription editions](./src/main/java/com/github/pzn/hellomarket/model/entity/SubscriptionType.java):
-- TRIAL
-- MONTHLY
-- YEARLY
-- LIFE
-
-If you deploy it yourself, make sure to configure your AppDirect product with those editions!
-
 live demo
 =========
 http://hellomarket.herokuapp.com
@@ -26,7 +18,7 @@ launch it locally?
 
 ```
 mvn spring-boot:run \
-  -Drun.jvmArguments="-Dappdirect.consumer_key='consumer_key' -Dappdirect.consumer_secret='consumer_secret'"
+  -Drun.jvmArguments="-Dappdirect.consumer_key='YOUR_APPDIRECT_CONSUMER_KEY' -Dappdirect.consumer_secret='YOUR_APPDIRECT_CONSUMER_SECRET'"
 ```
 
 refer to [project's application.yml](./src/main/resources/application.yml) for default settings, or [override them](https://docs.spring.io/spring-boot/docs/1.5.9.RELEASE/reference/html/howto-properties-and-configuration.html#howto-use-short-command-line-arguments).

@@ -1,13 +1,14 @@
 package com.github.pzn.hellomarket.integration.appdirect.processor;
 
-import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.USER_NOT_FOUND;
+import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.ACCOUNT_NOT_FOUND;
 import static com.github.pzn.hellomarket.integration.appdirect.event.EventType.SUBSCRIPTION_CANCEL;
 
 import com.github.pzn.hellomarket.integration.appdirect.AppDirectApiResponse;
+import com.github.pzn.hellomarket.integration.appdirect.event.Account;
 import com.github.pzn.hellomarket.integration.appdirect.event.AppDirectNotification;
 import com.github.pzn.hellomarket.integration.appdirect.event.EventType;
-import com.github.pzn.hellomarket.model.entity.AppUser;
-import com.github.pzn.hellomarket.service.AppUserService;
+import com.github.pzn.hellomarket.model.entity.AppOrg;
+import com.github.pzn.hellomarket.repository.AppOrgRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -16,38 +17,40 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class SubscriptionCancelProcessor implements AppDirectNotificationProcessor {
 
-  private AppUserService appUserService;
+  private AppOrgRepository appOrgRepository;
 
   @Autowired
-  public SubscriptionCancelProcessor(AppUserService appUserService) {
-    this.appUserService = appUserService;
+  public SubscriptionCancelProcessor(AppOrgRepository appOrgRepository) {
+    this.appOrgRepository = appOrgRepository;
   }
 
   @Override
   public AppDirectApiResponse process(AppDirectNotification notification) throws NotificationProcessorException {
 
-    String code = notification.getPayload().getAccount().getAccountIdentifier();
-    AppUser appUser = appUserService.findByCode(code);
-
-    if (appUser == null) {
-      log.warn("Cannot change AppUser type because account not found! From:{}, code:{}",
-          notification.getMarketplace().getPartner(), code);
+    AppOrg appOrg = getAppOrg(notification.getPayload().getAccount());
+    if (appOrg == null) {
+      log.warn("Organization(marketIdentifier:{}) from partner '{}' attempted to cancel subscription, but not found in database",
+          notification.getPayload().getAccount().getAccountIdentifier(), notification.getMarketplace().getPartner());
       return AppDirectApiResponse.builder()
           .success(false)
-          .errorCode(USER_NOT_FOUND)
+          .errorCode(ACCOUNT_NOT_FOUND)
           .build();
     }
 
-    if (!appUser.isActive()) {
-      log.info("AppUser(code:{}) already disabled", appUser.getCode());
-    } else {
-      appUserService.changeStatus(appUser.getId(), false);
-      log.info("AppUser(code:{}) disabled", appUser.getCode());
-    }
+    removeAppOrg(appOrg);
 
     return AppDirectApiResponse.builder()
         .success(true)
+        .accountIdentifier(appOrg.getCode())
         .build();
+  }
+
+  private AppOrg getAppOrg(Account account) {
+    return appOrgRepository.findByCode(account.getAccountIdentifier());
+  }
+
+  private void removeAppOrg(AppOrg appOrg) {
+    appOrgRepository.delete(appOrg);
   }
 
   @Override

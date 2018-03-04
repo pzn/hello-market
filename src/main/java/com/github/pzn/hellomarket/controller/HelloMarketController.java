@@ -1,6 +1,8 @@
 package com.github.pzn.hellomarket.controller;
 
-import com.github.pzn.hellomarket.service.AppUserService;
+import static javax.persistence.FetchType.EAGER;
+
+import com.github.pzn.hellomarket.service.AppOrgService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -11,16 +13,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("/")
 public class HelloMarketController {
 
-  private AppUserService appUserService;
+  private AppOrgService appOrgService;
 
   @Autowired
-  public HelloMarketController(AppUserService appUserService) {
-    this.appUserService = appUserService;
+  public HelloMarketController(AppOrgService appOrgService) {
+    this.appOrgService = appOrgService;
   }
 
   @GetMapping
   public String index(Model model) {
-    model.addAttribute("appUsers", appUserService.findAll());
+    model.addAttribute("appUsers", appOrgService.findAll(EAGER));
     return "index";
   }
 }
