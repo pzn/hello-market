@@ -1,0 +1,22 @@
+<!DOCTYPE html SYSTEM "http://www.thymeleaf.org/dtd/xhtml1-strict-thymeleaf-spring4-4.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Hello Market!</title>
+</head>
+<th:block th:include="_common :: meta" />
+<th:block th:include="_common :: css" />
+<body>
+
+<div class="container">
+  <div th:replace="_common :: header"></div>
+  <table>
+    <th:block th:each="appUser : ${appUsers}">
+      <tr th:object="${appUser}">
+        <td th:text="*{code}"/>
+      </tr>
+    </th:block>
+  </table>
+  <div th:replace="_common :: footer"></div>
+</div>
+</body>
+</html>

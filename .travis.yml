@@ -1,0 +1,4 @@
+language: java
+jdk:
+  - oraclejdk8
+install: mvn install -Dmaven.javadoc.skip=true -Ddockerfile.skip -B -V

@@ -1,0 +1,27 @@
+<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+</head>
+<body>
+
+  <meta th:fragment="meta">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="initial-scale=1.0" />
+  </meta>
+
+  <css th:fragment="css">
+    <link rel="stylesheet" href="/webjars/skeleton-css/2.0.4/css/normalize.css" th:href="@{/webjars/skeleton-css/2.0.4/css/normalize.css}" />
+    <link rel="stylesheet" href="/webjars/skeleton-css/2.0.4/css/skeleton.css" th:href="@{/webjars/skeleton-css/2.0.4/css/skeleton.css}" />
+    <link rel="stylesheet" href="../static/css/hellomarket.css" th:href="@{/css/hellomarket.css}" />
+  </css>
+
+  <header th:fragment="header">
+    <a href="/" th:href="@{/}"><h4>Hello Market!</h4></a>
+  </header>
+
+  <footer th:fragment="footer">
+    <span class="copy-left">&copy;</span> 2018 Hello Market!.
+  </footer>
+
+</body>
+</html>

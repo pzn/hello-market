@@ -1,0 +1,20 @@
+# # http://docs.spring.io/spring-boot/docs/1.5.9.RELEASE/reference/html/common-application-properties.html
+spring:
+  main:
+    banner-mode: "off"
+  jpa:
+    generate-ddl: false
+    hibernate:
+      ddl-auto: validate
+  datasource:
+    platform: postgresql
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/hellomarket
+    username: hellomarket
+    password: hellomarket
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+    default-property-inclusion: non_null
+security:
+  ignored: /**
