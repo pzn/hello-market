@@ -29,7 +29,7 @@ public class SubscriptionCancelProcessor implements AppDirectNotificationProcess
 
     AppOrg appOrg = getAppOrg(notification.getPayload().getAccount());
     if (appOrg == null) {
-      log.warn("Organization(marketIdentifier:{}) from partner '{}' attempted to cancel subscription, but not found in database",
+      log.warn("AppOrg(code:{}) from partner '{}' attempted to cancel subscription, but not found in database",
           notification.getPayload().getAccount().getAccountIdentifier(), notification.getMarketplace().getPartner());
       return AppDirectApiResponse.builder()
           .success(false)

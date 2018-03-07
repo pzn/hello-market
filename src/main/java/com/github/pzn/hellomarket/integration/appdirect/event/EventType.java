@@ -16,4 +16,10 @@ public enum EventType {
 
   // https://help.appdirect.com/appdistrib/Default.htm#Dev-DistributionGuide/en-subs-notice.html
   SUBSCRIPTION_NOTICE,
+
+  // https://help.appdirect.com/appdistrib/Default.htm#Dev-DistributionGuide/en-ue-user-assign.html
+  USER_ASSIGNMENT,
+
+  // https://help.appdirect.com/appdistrib/Default.htm#Dev-DistributionGuide/en-ue-user-usassign.html
+  USER_UNASSIGNMENT,
 }

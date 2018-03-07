@@ -103,4 +103,15 @@ public class AppUserRepositoryIntegrationTest {
     // Execute
     appUserRepository.save(appUser);
   }
+
+  @Test
+  public void can_find_by_market_identifier_and_apporg_code() throws Exception {
+
+    // Execute
+    AppUser appUser = appUserRepository.findByMarketIdentifierAndAppOrgCode(MARKET_IDENTIFIER, "apporg_code");
+
+    // Verify
+    assertThat(appUser.getMarketIdentifier(), is(MARKET_IDENTIFIER));
+    assertThat(appUser.getAppOrg().getMarketIdentifier(), is("apporg_code"));
+  }
 }
