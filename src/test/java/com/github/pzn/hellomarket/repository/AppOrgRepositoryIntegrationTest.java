@@ -1,10 +1,12 @@
 package com.github.pzn.hellomarket.repository;
 
+import static com.github.pzn.hellomarket.model.entity.SubscriptionType.SMALL;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertThat;
 
 import com.github.pzn.hellomarket.model.entity.AppOrg;
+import com.github.pzn.hellomarket.model.entity.SubscriptionType;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -16,13 +18,13 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
-public class AppOrgRepositoryTest {
+public class AppOrgRepositoryIntegrationTest {
 
   private static final Long ID = 1L;
   private static final String CODE = "apporg_code";
   private static final String MARKET_IDENTIFIER = "apporg_market_identifier";
   private static final Boolean INITIAL_STATUS = true;
-  private static final Long MAX_USERS = 10L;
+  private static final SubscriptionType SUBSCRIPTION_TYPE = SMALL;
   private static final String NAME = "name";
   private static final String COUNTRY = "CA";
 
@@ -35,8 +37,8 @@ public class AppOrgRepositoryTest {
   public void before() throws Exception {
     jdbcTemplate.execute("DELETE FROM appuser");
     jdbcTemplate.execute("DELETE FROM apporg");
-    jdbcTemplate.update("INSERT INTO apporg VALUES(?, ?, ?, ?, ?, ?, ?)",
-        new Object[]{ID, CODE, MARKET_IDENTIFIER, INITIAL_STATUS, MAX_USERS, NAME, COUNTRY});
+    jdbcTemplate.update("INSERT INTO apporg(id, code, market_identifier, active, name, country, subscription_type) VALUES(?, ?, ?, ?, ?, ?, ?)",
+        new Object[]{ID, CODE, MARKET_IDENTIFIER, INITIAL_STATUS, NAME, COUNTRY, SUBSCRIPTION_TYPE.toString()});
     jdbcTemplate.update("INSERT INTO appuser VALUES(?, ?, ?, ?, ?, ?, ?)",
         new Object[]{3000L, "appuser_code", "appuser_market_identifier", "first_name", "last_name", "open_id_url", ID});
   }

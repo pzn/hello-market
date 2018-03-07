@@ -4,6 +4,10 @@ import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.ACCOUNT
 import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.CONFIGURATION_ERROR;
 import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.MAX_USERS_REACHED;
 import static com.github.pzn.hellomarket.integration.appdirect.event.EventType.SUBSCRIPTION_CHANGE;
+import static com.github.pzn.hellomarket.model.entity.SubscriptionType.LARGE;
+import static com.github.pzn.hellomarket.model.entity.SubscriptionType.SINGLE_USER;
+import static com.github.pzn.hellomarket.model.entity.SubscriptionType.SMALL;
+import static com.github.pzn.hellomarket.model.entity.SubscriptionType.START_UP;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
@@ -22,6 +26,7 @@ import com.github.pzn.hellomarket.integration.appdirect.event.Order.Item;
 import com.github.pzn.hellomarket.integration.appdirect.event.Payload;
 import com.github.pzn.hellomarket.model.entity.AppOrg;
 import com.github.pzn.hellomarket.model.entity.AppUser;
+import com.github.pzn.hellomarket.model.entity.SubscriptionType;
 import com.github.pzn.hellomarket.repository.AppOrgRepository;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -39,8 +44,8 @@ import org.mockito.runners.MockitoJUnitRunner;
 public class SubscriptionChangeProcessorTest {
 
   private static final String APPORG_CODE = "apporg_code";
-  private static final Long CURRENT_MAX_USERS = 100L;
-  private static final Long NEW_MAX_USERS = 101L;
+  private static final SubscriptionType CURRENT_SUBSCRIPTION_TYPE = SMALL;
+  private static final SubscriptionType NEW_SUBSCRIPTION_TYPE = LARGE;
 
   @InjectMocks
   private SubscriptionChangeProcessor processor;
@@ -53,10 +58,10 @@ public class SubscriptionChangeProcessorTest {
   public void can_change_subscription() throws Exception {
 
     // Given
-    assumeCompanyDoesExist(CURRENT_MAX_USERS, CURRENT_MAX_USERS);
+    assumeCompanyDoesExist(CURRENT_SUBSCRIPTION_TYPE.getMaxUsers(), CURRENT_SUBSCRIPTION_TYPE);
 
     // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionChange(APPORG_CODE, NEW_MAX_USERS));
+    AppDirectApiResponse response = processor.process(aSubscriptionChange(APPORG_CODE, NEW_SUBSCRIPTION_TYPE.toString()));
 
     // Verify
     assertThat(response.isSuccess(), is(true));
@@ -65,14 +70,14 @@ public class SubscriptionChangeProcessorTest {
     verify(appOrgRepository).findByCodeFetchUsers(eq(APPORG_CODE));
     verify(appOrgRepository).save(appOrgCaptor.capture());
     AppOrg capturedAppOrg = appOrgCaptor.getValue();
-    assertThat(capturedAppOrg.getMaxUsers(), is(NEW_MAX_USERS));
+    assertThat(capturedAppOrg.getSubscriptionType(), is(NEW_SUBSCRIPTION_TYPE));
   }
 
   @Test
   public void cannot_change_subscription_when_organization_not_found() throws Exception {
 
     // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionChange("unknown_accountIdentifier", NEW_MAX_USERS));
+    AppDirectApiResponse response = processor.process(aSubscriptionChange("unknown_accountIdentifier", NEW_SUBSCRIPTION_TYPE.toString()));
 
     // Verify
     assertThat(response.isSuccess(), is(false));
@@ -83,10 +88,10 @@ public class SubscriptionChangeProcessorTest {
   }
 
   @Test
-  public void cannot_change_subscription_when_user_quantity_not_available_in_payload() throws Exception {
+  public void cannot_change_subscription_when_edition_code_not_available_in_payload() throws Exception {
 
     // Given
-    assumeCompanyDoesExist(CURRENT_MAX_USERS, CURRENT_MAX_USERS);
+    assumeCompanyDoesExist(CURRENT_SUBSCRIPTION_TYPE.getMaxUsers(), CURRENT_SUBSCRIPTION_TYPE);
 
     // Execute
     AppDirectApiResponse response = processor.process(aSubscriptionChange(APPORG_CODE, null));
@@ -100,13 +105,30 @@ public class SubscriptionChangeProcessorTest {
   }
 
   @Test
+  public void cannot_change_subscription_when_unrecognized_edition_code() throws Exception {
+
+    // Given
+    assumeCompanyDoesExist(CURRENT_SUBSCRIPTION_TYPE.getMaxUsers(), CURRENT_SUBSCRIPTION_TYPE);
+
+    // Execute
+    AppDirectApiResponse response = processor.process(aSubscriptionChange(APPORG_CODE, "UNICORN"));
+
+    // Verify
+    assertThat(response.isSuccess(), is(false));
+    assertThat(response.getAccountIdentifier(), is(APPORG_CODE));
+    assertThat(response.getErrorCode(), is(CONFIGURATION_ERROR));
+    verify(appOrgRepository).findByCodeFetchUsers(eq(APPORG_CODE));
+    verify(appOrgRepository, never()).save(any(AppOrg.class));
+  }
+
+  @Test
   public void cannot_change_subscription_when_apporg_user_base_is_larger_than_new_edition() throws Exception {
 
     // Given
-    assumeCompanyDoesExist(CURRENT_MAX_USERS, CURRENT_MAX_USERS);
+    assumeCompanyDoesExist(CURRENT_SUBSCRIPTION_TYPE.getMaxUsers(), CURRENT_SUBSCRIPTION_TYPE);
 
     // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionChange(APPORG_CODE, -1 + CURRENT_MAX_USERS));
+    AppDirectApiResponse response = processor.process(aSubscriptionChange(APPORG_CODE, SINGLE_USER.toString()));
 
     // Verify
     assertThat(response.isSuccess(), is(false));
@@ -116,11 +138,11 @@ public class SubscriptionChangeProcessorTest {
     verify(appOrgRepository, never()).save(any(AppOrg.class));
   }
 
-  private void assumeCompanyDoesExist(long actualNumberOfUsers, long currentMaxUsers) {
+  private void assumeCompanyDoesExist(long actualNumberOfUsers, SubscriptionType currentSubscriptionType) {
 
     AppOrg appOrg = AppOrg.builder()
         .code(APPORG_CODE)
-        .maxUsers(currentMaxUsers)
+        .subscriptionType(currentSubscriptionType)
         .appUsers(someAppUsers(actualNumberOfUsers)).build();
     when(appOrgRepository.findByCodeFetchUsers(APPORG_CODE))
         .thenReturn(appOrg);
@@ -134,12 +156,7 @@ public class SubscriptionChangeProcessorTest {
     return appUsers;
   }
 
-  public AppDirectNotification aSubscriptionChange(String appOrgCode, Long newNumberOfUsers) {
-
-    List<Item> items = new ArrayList<>(1);
-    if (newNumberOfUsers != null) {
-      items.add(Item.builder().unit("USER").quantity(newNumberOfUsers.toString()).build());
-    }
+  public AppDirectNotification aSubscriptionChange(String appOrgCode, String newEditionCode) {
 
     return AppDirectNotification.builder()
         .type(SUBSCRIPTION_CHANGE)
@@ -149,7 +166,7 @@ public class SubscriptionChangeProcessorTest {
             .account(Account.builder()
                 .accountIdentifier(appOrgCode).build())
             .order(Order.builder()
-                .items(items).build()).build())
+                .editionCode(newEditionCode).build()).build())
         .build();
   }
 }
