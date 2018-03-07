@@ -9,6 +9,7 @@ import com.github.pzn.hellomarket.integration.appdirect.event.AppDirectNotificat
 import com.github.pzn.hellomarket.integration.appdirect.event.Company;
 import com.github.pzn.hellomarket.integration.appdirect.event.EventType;
 import com.github.pzn.hellomarket.integration.appdirect.event.Order;
+import com.github.pzn.hellomarket.integration.appdirect.event.Payload;
 import com.github.pzn.hellomarket.integration.appdirect.event.User;
 import com.github.pzn.hellomarket.model.entity.AppOrg;
 import com.github.pzn.hellomarket.model.entity.AppUser;
@@ -43,28 +44,10 @@ public class SubscriptionOrderProcessor implements AppDirectNotificationProcesso
   public AppDirectApiResponse process(AppDirectNotification notification) throws NotificationProcessorException {
 
     Company company = notification.getPayload().getCompany();
-    if (!companyAlreadySubscribed(company)) {
-      log.warn("AppOrg(marketIdentifier:{}) from partner '{}' is already subscribed",
-          company.getUuid(), notification.getMarketplace().getPartner());
-      return AppDirectApiResponse.builder()
-          .success(false)
-          .accountIdentifier(company.getUuid())
-          .errorCode(USER_ALREADY_EXISTS)
-          .build();
-    }
 
-    SubscriptionType subscriptionType;
-    try {
-      subscriptionType = retrieveNewSubscriptionType(notification.getPayload().getOrder());
-    } catch (Exception e) {
-      log.warn("Unrecognized Edition(code:{}) from partner '{}'",
-          notification.getPayload().getOrder().getEditionCode(), notification.getMarketplace().getPartner());
+    companyMustNotExist(company);
 
-      return AppDirectApiResponse.builder()
-          .success(false)
-          .errorCode(CONFIGURATION_ERROR)
-          .build();
-    }
+    SubscriptionType subscriptionType = extractNewSubscriptionType(notification.getPayload());
 
     AppOrg appOrg = createAppOrg(company, subscriptionType);
 
@@ -72,20 +55,30 @@ public class SubscriptionOrderProcessor implements AppDirectNotificationProcesso
 
     createNewSubscription(appOrg, appUser);
 
-    return AppDirectApiResponse.builder()
-        .success(true)
-        .accountIdentifier(appOrg.getCode())
-        .userIdentifier(appUser.getCode())
-        .build();
+    return AppDirectApiResponse.success(appOrg.getCode(), appUser.getCode());
   }
 
-  @Override
-  public EventType getType() {
-    return SUBSCRIPTION_ORDER;
+  private void companyMustNotExist(Company company) {
+
+    AppOrg appOrg = appOrgRepository.findByMarketIdentifier(company.getUuid());
+    if (appOrg == null) {
+      return;
+    }
+
+    throw new NotificationProcessorException(USER_ALREADY_EXISTS, appOrg.getCode(), null,
+        String.format("Company(accountIdentifier:%s) already subscribed", appOrg.getCode()));
   }
 
-  private boolean companyAlreadySubscribed(Company company) {
-    return null == appOrgRepository.findByMarketIdentifier(company.getUuid());
+  private SubscriptionType extractNewSubscriptionType(Payload payload) {
+
+    String editionCode = payload.getOrder().getEditionCode();
+
+    try {
+      return SubscriptionType.valueOf(editionCode);
+    } catch (Exception e) {
+      throw new NotificationProcessorException(CONFIGURATION_ERROR, null, null,
+          String.format("Unrecognized Edition(code:{})", editionCode));
+    }
   }
 
   private SubscriptionType retrieveNewSubscriptionType(Order order) {
@@ -124,5 +117,10 @@ public class SubscriptionOrderProcessor implements AppDirectNotificationProcesso
   private void createNewSubscription(AppOrg appOrg, AppUser appUser) {
     appOrgRepository.save(appOrg);
     appUserRepository.save(appUser);
+  }
+
+  @Override
+  public EventType getType() {
+    return SUBSCRIPTION_ORDER;
   }
 }

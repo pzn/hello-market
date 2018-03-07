@@ -10,6 +10,7 @@ import com.github.pzn.hellomarket.integration.appdirect.event.EventType;
 import com.github.pzn.hellomarket.integration.appdirect.event.User;
 import com.github.pzn.hellomarket.model.entity.AppUser;
 import com.github.pzn.hellomarket.repository.AppUserRepository;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -28,26 +29,27 @@ public class UserUnassignmentProcessor implements AppDirectNotificationProcessor
   @Override
   public AppDirectApiResponse process(AppDirectNotification notification) throws NotificationProcessorException {
 
-    AppUser appUser = getAppUser(notification.getPayload().getUser(), notification.getPayload().getAccount());
-    if (appUser == null) {
-      log.warn("Organization(code:{}) from partner '{}' attempted to unassign User(marketIdentifier:{}), but not found in database",
-          notification.getPayload().getAccount().getAccountIdentifier(), notification.getMarketplace().getPartner(), notification.getPayload().getUser().getUuid());
-      return AppDirectApiResponse.builder()
-          .success(false)
-          .errorCode(USER_NOT_FOUND)
-          .build();
-    }
+    Account account = notification.getPayload().getAccount();
+
+    AppUser appUser = retrieveAppUser(notification.getPayload().getUser(), account);
 
     removeAppUser(appUser);
 
-    return AppDirectApiResponse.builder()
-        .success(true)
-        .accountIdentifier(notification.getPayload().getAccount().getAccountIdentifier())
-        .build();
+    return AppDirectApiResponse.success(account.getAccountIdentifier());
   }
 
-  private AppUser getAppUser(User user, Account account) {
-    return appUserRepository.findByMarketIdentifierAndAppOrgCode(user.getUuid(), account.getAccountIdentifier());
+  private AppUser retrieveAppUser(User user, Account account) {
+
+    AppUser appUser = appUserRepository.findByMarketIdentifierAndAppOrgCode(user.getUuid(), account.getAccountIdentifier());
+    if (appUser != null) {
+      return appUser;
+    }
+
+    throw new NotificationProcessorException(USER_NOT_FOUND,
+                                             account.getAccountIdentifier(),
+                                             null,
+                                             String.format("Cannot find user(uuid:%s) for company(accountIdentifier:%s)",
+                                                 user.getUuid(), account.getAccountIdentifier()));
   }
 
   private void removeAppUser(AppUser appUser) {

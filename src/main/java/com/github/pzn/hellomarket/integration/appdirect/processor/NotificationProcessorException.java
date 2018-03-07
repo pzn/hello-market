@@ -1,24 +1,27 @@
 package com.github.pzn.hellomarket.integration.appdirect.processor;
 
+import com.github.pzn.hellomarket.integration.appdirect.ErrorCode;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@AllArgsConstructor
+@Getter
 public class NotificationProcessorException extends RuntimeException {
 
-  public NotificationProcessorException() {
-    super();
+  private ErrorCode errorCode;
+  private String accountIdentifier;
+  private String userIdentifier;
+  private String message;
+
+  public NotificationProcessorException(ErrorCode errorCode) {
+    this(errorCode, null);
+  }
+
+  public NotificationProcessorException(ErrorCode errorCode, String message) {
+    this(errorCode, null, null, message);
   }
 
   public NotificationProcessorException(String message) {
     super(message);
-  }
-
-  public NotificationProcessorException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  public NotificationProcessorException(Throwable cause) {
-    super(cause);
-  }
-
-  protected NotificationProcessorException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-    super(message, cause, enableSuppression, writableStackTrace);
   }
 }

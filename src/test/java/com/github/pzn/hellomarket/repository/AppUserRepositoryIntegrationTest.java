@@ -112,6 +112,6 @@ public class AppUserRepositoryIntegrationTest {
 
     // Verify
     assertThat(appUser.getMarketIdentifier(), is(MARKET_IDENTIFIER));
-    assertThat(appUser.getAppOrg().getMarketIdentifier(), is("apporg_code"));
+    assertThat(appUser.getAppOrg().getMarketIdentifier(), is("apporg_market_identifier"));
   }
 }

@@ -1,14 +1,12 @@
 package com.github.pzn.hellomarket.controller;
 
-import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.INVALID_RESPONSE;
-import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.UNAUTHORIZED;
 import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.UNKNOWN_ERROR;
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
 import com.github.pzn.hellomarket.integration.appdirect.AppDirectApiResponse;
 import com.github.pzn.hellomarket.integration.appdirect.processor.NotificationProcessorException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -22,21 +20,21 @@ public class HelloMarketControllerAdvice {
   @ExceptionHandler(Throwable.class)
   public @ResponseBody AppDirectApiResponse generalErrorHandler(Throwable e) {
 
-    log.warn("{}", e);
+    log.error("{}", e);
     return AppDirectApiResponse.builder()
         .success(false)
         .errorCode(UNKNOWN_ERROR)
         .build();
   }
 
-  @ResponseStatus(BAD_REQUEST)
-  @ExceptionHandler(IllegalArgumentException.class)
-  public @ResponseBody AppDirectApiResponse iaeHandler(Throwable e) {
+  @ResponseStatus(INTERNAL_SERVER_ERROR)
+  @ExceptionHandler(DataAccessException.class)
+  public @ResponseBody AppDirectApiResponse daoHandler(DataAccessException e) {
 
-    log.warn("{}", e);
+    log.error("{}", e);
     return AppDirectApiResponse.builder()
         .success(false)
-        .errorCode(UNAUTHORIZED)
+        .errorCode(UNKNOWN_ERROR)
         .build();
   }
 
@@ -44,10 +42,13 @@ public class HelloMarketControllerAdvice {
   @ExceptionHandler(NotificationProcessorException.class)
   public @ResponseBody AppDirectApiResponse processorExceptionHandler(NotificationProcessorException e) {
 
-    log.warn("{}", e);
+    log.info("{}", e);
     return AppDirectApiResponse.builder()
         .success(false)
-        .errorCode(INVALID_RESPONSE)
+        .errorCode(e.getErrorCode())
+        .accountIdentifier(e.getAccountIdentifier())
+        .userIdentifier(e.getUserIdentifier())
+        .message(e.getMessage())
         .build();
   }
 }

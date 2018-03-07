@@ -28,27 +28,24 @@ public class SubscriptionNoticeProcessor implements AppDirectNotificationProcess
   @Override
   public AppDirectApiResponse process(AppDirectNotification notification) throws NotificationProcessorException {
 
-    AppOrg appOrg = getAppOrg(notification.getPayload().getAccount());
-    if (appOrg == null) {
-      log.warn("Organization(marketIdentifier:{}) from partner '{}' attempted to cancel subscription, but not found in database",
-          notification.getPayload().getAccount().getAccountIdentifier(), notification.getMarketplace().getPartner());
-
-      return AppDirectApiResponse.builder()
-          .success(false)
-          .errorCode(ACCOUNT_NOT_FOUND)
-          .build();
-    }
+    AppOrg appOrg = retrieveAppOrg(notification.getPayload().getAccount());
 
     processNotice(notification.getPayload().getType(), appOrg);
 
-    return AppDirectApiResponse.builder()
-        .success(true)
-        .accountIdentifier(appOrg.getCode())
-        .build();
+    return AppDirectApiResponse.success(appOrg.getCode());
   }
 
-  private AppOrg getAppOrg(Account account) {
-    return appOrgRepository.findByCode(account.getAccountIdentifier());
+  private AppOrg retrieveAppOrg(Account account) {
+
+    String accountIdentifier = account.getAccountIdentifier();
+
+    AppOrg appOrg = appOrgRepository.findByCode(accountIdentifier);
+    if (appOrg != null) {
+      return appOrg;
+    }
+
+    throw new NotificationProcessorException(ACCOUNT_NOT_FOUND, accountIdentifier, null,
+        String.format("Cannot find company(accountIdentifier:%s)", accountIdentifier));
   }
 
   private void processNotice(NoticeType noticeType, AppOrg appOrg) {
@@ -77,9 +74,11 @@ public class SubscriptionNoticeProcessor implements AppDirectNotificationProcess
 
     if (appOrg.getActive() != newActiveStatus) {
       appOrgRepository.changeActiveStatus(appOrg.getId(), newActiveStatus);
-      log.info("AppUser(code:{}) as been {}", appOrg.getCode(), newActiveStatus ? "enabled" : "disabled");
+      log.info("Company(accontIdentifier:{}) as been {}", appOrg.getCode(),
+          newActiveStatus ? "enabled" : "disabled");
     } else {
-      log.info("AppUser(code:{}) already {}", appOrg.getCode(), newActiveStatus ? "enabled" : "disabled");
+      log.info("Company(accontIdentifier:{}) already {}", appOrg.getCode(),
+          newActiveStatus ? "enabled" : "disabled");
     }
   }
 

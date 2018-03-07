@@ -6,8 +6,10 @@ import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.USER_AL
 import static com.github.pzn.hellomarket.integration.appdirect.event.EventType.USER_ASSIGNMENT;
 import static com.github.pzn.hellomarket.model.entity.SubscriptionType.START_UP;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.never;
@@ -81,66 +83,87 @@ public class UserAssignmentProcessorTest {
     assertThat(response.getAccountIdentifier(), is(APPORG_CODE));
     assertThat(response.getUserIdentifier(), is(APPUSER_CODE));
     assertThat(response.getErrorCode(), is(nullValue()));
+    assertThat(response.getMessage(), is(nullValue()));
+
     verify(appOrgRepository).findByCodeFetchUsers(eq(APPORG_CODE));
     verifySaveAppUserHasInteractions(existingAppOrg);
   }
 
   @Test
-  public void when_unknown_apporg__should_return_bad_response() throws Exception {
+  public void cannot_assign_user_when_company_not_found() throws Exception {
 
     // Given
     assumeCompanyDoesNotExist();
 
     // Execute
-    AppDirectApiResponse response = processor.process(aUserAssignment());
+    try {
+      processor.process(aUserAssignment());
+    } catch (NotificationProcessorException e) {
 
-    // Verify
-    assertThat(response.isSuccess(), is(false));
-    assertThat(response.getAccountIdentifier(), is(nullValue()));
-    assertThat(response.getUserIdentifier(), is(nullValue()));
-    assertThat(response.getErrorCode(), is(ACCOUNT_NOT_FOUND));
-    verify(appOrgRepository).findByCodeFetchUsers(eq(APPORG_CODE));
-    verifySaveAppUserHasNoInteractions();
+      // Verify
+      assertThat(e.getErrorCode(), is(ACCOUNT_NOT_FOUND));
+      assertThat(e.getAccountIdentifier(), is(APPORG_CODE));
+      assertThat(e.getUserIdentifier(), is(nullValue()));
+      assertThat(e.getMessage(), is(notNullValue()));
+
+      verify(appOrgRepository).findByCodeFetchUsers(eq(APPORG_CODE));
+      verifySaveAppUserHasNoInteractions();
+      return;
+    }
+    fail("should throw a NotificationProcessorException!");
   }
 
   @Test
-  public void when_cannot_assign_new_user__should_return_bad_response() throws Exception {
+  public void cannot_assign_user_when_company_cannot_allow_more_users() throws Exception {
 
     // Given
     assumeCompanyDoesExist(SUBSCRIPTION_TYPE_OF_10_PEOPLE, 10);
 
     // Execute
-    AppDirectApiResponse response = processor.process(aUserAssignment());
+    try {
+      processor.process(aUserAssignment());
+    } catch (NotificationProcessorException e) {
 
-    // Verify
-    assertThat(response.isSuccess(), is(false));
-    assertThat(response.getAccountIdentifier(), is(APPORG_CODE));
-    assertThat(response.getUserIdentifier(), is(nullValue()));
-    assertThat(response.getErrorCode(), is(MAX_USERS_REACHED));
-    verify(appOrgRepository).findByCodeFetchUsers(eq(APPORG_CODE));
-    verifySaveAppUserHasNoInteractions();
+      // Verify
+      assertThat(e.getErrorCode(), is(MAX_USERS_REACHED));
+      assertThat(e.getAccountIdentifier(), is(APPORG_CODE));
+      assertThat(e.getUserIdentifier(), is(nullValue()));
+      assertThat(e.getMessage(), is(notNullValue()));
+
+      verify(appOrgRepository).findByCodeFetchUsers(eq(APPORG_CODE));
+      verifySaveAppUserHasNoInteractions();
+      return;
+    }
+    fail("should throw a NotificationProcessorException!");
   }
 
   @Test
-  public void when_user_already_assigned__should_return_bad_response() throws Exception {
+  public void cannot_assign_user_if_already_assigned() throws Exception {
 
     // Given
     assumeCompanyDoesExist(SUBSCRIPTION_TYPE_OF_10_PEOPLE, 1);
     assumeUserAlreadySubscribed();
 
     // Execute
-    AppDirectApiResponse response = processor.process(aUserAssignment());
+    try {
+      processor.process(aUserAssignment());
+    } catch (NotificationProcessorException e) {
 
-    // Verify
-    assertThat(response.isSuccess(), is(false));
-    assertThat(response.getAccountIdentifier(), is(APPORG_CODE));
-    assertThat(response.getUserIdentifier(), is(APPUSER_CODE));
-    assertThat(response.getErrorCode(), is(USER_ALREADY_EXISTS));
-    verify(appOrgRepository).findByCodeFetchUsers(eq(APPORG_CODE));
-    verifySaveAppUserHasNoInteractions();
+      // Verify
+      assertThat(e.getErrorCode(), is(USER_ALREADY_EXISTS));
+      assertThat(e.getAccountIdentifier(), is(APPORG_CODE));
+      assertThat(e.getUserIdentifier(), is(APPUSER_CODE));
+      assertThat(e.getMessage(), is(notNullValue()));
+
+      verify(appOrgRepository).findByCodeFetchUsers(eq(APPORG_CODE));
+      verifySaveAppUserHasNoInteractions();
+      return;
+    }
+    fail("should throw a NotificationProcessorException!");
   }
 
   private AppOrg assumeCompanyDoesExist(SubscriptionType subscriptionType, int numberOfSubscribedUsers) {
+
     AppOrg appOrg = new AppOrg().builder()
         .code(APPORG_CODE)
         .subscriptionType(subscriptionType)

@@ -36,9 +36,7 @@ public class SubscriptionNoticeProcessor_UpcomingInvoiceNoticeTypeBaseTest exten
     AppDirectApiResponse response = processor.process(aSubscriptionNotice(APPORG_CODE, getNoticeType()));
 
     // Verify
-    assertThat(response.isSuccess(), is(true));
-    assertThat(response.getAccountIdentifier(), is(APPORG_CODE));
-    assertThat(response.getErrorCode(), is(nullValue()));
+    verifyApiResponse(response);
     verify(appOrgRepository).findByCode(eq(APPORG_CODE));
     verify(appOrgRepository, never()).delete(any(AppOrg.class));
     verify(appOrgRepository, never()).changeActiveStatus(anyLong(), anyBoolean());
