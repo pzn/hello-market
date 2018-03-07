@@ -1,11 +1,13 @@
 package com.github.pzn.hellomarket.model.entity;
 
 import static javax.persistence.CascadeType.REMOVE;
+import static javax.persistence.EnumType.STRING;
 import static javax.persistence.FetchType.LAZY;
 import static javax.persistence.GenerationType.SEQUENCE;
 
 import java.util.Set;
 import javax.persistence.Entity;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
@@ -33,7 +35,8 @@ public class AppOrg {
   private String code;
   private String marketIdentifier;
   private Boolean active;
-  private Long maxUsers;
+  @Enumerated(STRING)
+  private SubscriptionType subscriptionType;
 
   private String name;
   private String country;

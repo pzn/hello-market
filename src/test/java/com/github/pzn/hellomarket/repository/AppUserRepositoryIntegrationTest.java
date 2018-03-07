@@ -1,7 +1,7 @@
 package com.github.pzn.hellomarket.repository;
 
+import static com.github.pzn.hellomarket.model.entity.SubscriptionType.START_UP;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertThat;
 
 import com.github.pzn.hellomarket.model.entity.AppOrg;
@@ -17,7 +17,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
-public class AppUserRepositoryTest {
+public class AppUserRepositoryIntegrationTest {
 
   private static final Long ID = 1L;
   private static final String CODE = "appuser_code";
@@ -40,8 +40,8 @@ public class AppUserRepositoryTest {
   public void before() throws Exception {
     jdbcTemplate.execute("DELETE FROM appuser");
     jdbcTemplate.execute("DELETE FROM apporg");
-    jdbcTemplate.update("INSERT INTO apporg VALUES(?, ?, ?, ?, ?, ?, ?)",
-        new Object[]{APPORG_ID, "apporg_code", "apporg_market_identifier", true, 10L, "name", "CA"});
+    jdbcTemplate.update("INSERT INTO apporg(id, code, market_identifier, active, name, country, subscription_type) VALUES(?, ?, ?, ?, ?, ?, ?)",
+        new Object[]{APPORG_ID, "apporg_code", "apporg_market_identifier", true, "name", "CA", START_UP.toString()});
     appOrg = appOrgRepository.findOne(APPORG_ID);
     jdbcTemplate.update("INSERT INTO appuser VALUES(?, ?, ?, ?, ?, ?, ?)",
         new Object[]{ID, CODE, MARKET_IDENTIFIER, FIRST_NAME, LAST_NAME, OPEN_ID, ID});

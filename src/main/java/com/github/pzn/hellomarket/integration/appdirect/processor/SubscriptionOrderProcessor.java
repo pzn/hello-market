@@ -1,5 +1,6 @@
 package com.github.pzn.hellomarket.integration.appdirect.processor;
 
+import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.CONFIGURATION_ERROR;
 import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.USER_ALREADY_EXISTS;
 import static com.github.pzn.hellomarket.integration.appdirect.event.EventType.SUBSCRIPTION_ORDER;
 
@@ -8,15 +9,13 @@ import com.github.pzn.hellomarket.integration.appdirect.event.AppDirectNotificat
 import com.github.pzn.hellomarket.integration.appdirect.event.Company;
 import com.github.pzn.hellomarket.integration.appdirect.event.EventType;
 import com.github.pzn.hellomarket.integration.appdirect.event.Order;
-import com.github.pzn.hellomarket.integration.appdirect.event.Order.Item;
 import com.github.pzn.hellomarket.integration.appdirect.event.User;
 import com.github.pzn.hellomarket.model.entity.AppOrg;
 import com.github.pzn.hellomarket.model.entity.AppUser;
+import com.github.pzn.hellomarket.model.entity.SubscriptionType;
 import com.github.pzn.hellomarket.repository.AppOrgRepository;
 import com.github.pzn.hellomarket.repository.AppUserRepository;
 import com.github.pzn.hellomarket.service.CodeService;
-import java.util.Optional;
-import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -54,7 +53,20 @@ public class SubscriptionOrderProcessor implements AppDirectNotificationProcesso
           .build();
     }
 
-    AppOrg appOrg = createAppOrg(company, notification.getPayload().getOrder());
+    SubscriptionType subscriptionType;
+    try {
+      subscriptionType = retrieveNewSubscriptionType(notification.getPayload().getOrder());
+    } catch (Exception e) {
+      log.warn("Unrecognized Edition(code:{}) from partner '{}'",
+          notification.getPayload().getOrder().getEditionCode(), notification.getMarketplace().getPartner());
+
+      return AppDirectApiResponse.builder()
+          .success(false)
+          .errorCode(CONFIGURATION_ERROR)
+          .build();
+    }
+
+    AppOrg appOrg = createAppOrg(company, subscriptionType);
 
     AppUser appUser = createAppUser(notification.getCreator(), appOrg);
 
@@ -76,28 +88,22 @@ public class SubscriptionOrderProcessor implements AppDirectNotificationProcesso
     return null == appOrgRepository.findByMarketIdentifier(company.getUuid());
   }
 
-  private AppOrg createAppOrg(Company company, Order order) {
+  private SubscriptionType retrieveNewSubscriptionType(Order order) {
+    return SubscriptionType.valueOf(order.getEditionCode());
+  }
+
+  private AppOrg createAppOrg(Company company, SubscriptionType subscriptionType) {
 
     return AppOrg.builder()
         .code(codeService.generateCode())
         .marketIdentifier(company.getUuid())
         .active(true)
-        .maxUsers(retrieveUserQuantity(order))
+        .subscriptionType(subscriptionType)
 
         .name(company.getName())
         .country(company.getCountry())
 
         .build();
-  }
-
-  private Long retrieveUserQuantity(Order order) {
-    Optional<Item> item = order.getItems().stream()
-        .filter(i -> "USER".equals(i.getUnit()))
-        .findFirst();
-    if (item.isPresent()) {
-      return Long.parseLong(item.get().getQuantity());
-    }
-    return null;
   }
 
   private AppUser createAppUser(User orderCreator, AppOrg appOrg) {

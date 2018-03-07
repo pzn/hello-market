@@ -1,10 +1,13 @@
 package com.github.pzn.hellomarket.integration.appdirect.processor;
 
+import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.CONFIGURATION_ERROR;
 import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.USER_ALREADY_EXISTS;
 import static com.github.pzn.hellomarket.integration.appdirect.event.EventType.SUBSCRIPTION_ORDER;
+import static com.github.pzn.hellomarket.model.entity.SubscriptionType.MEDIUM;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.never;
@@ -21,11 +24,11 @@ import com.github.pzn.hellomarket.integration.appdirect.event.Payload;
 import com.github.pzn.hellomarket.integration.appdirect.event.User;
 import com.github.pzn.hellomarket.model.entity.AppOrg;
 import com.github.pzn.hellomarket.model.entity.AppUser;
+import com.github.pzn.hellomarket.model.entity.SubscriptionType;
 import com.github.pzn.hellomarket.repository.AppOrgRepository;
 import com.github.pzn.hellomarket.repository.AppUserRepository;
 import com.github.pzn.hellomarket.service.CodeService;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,7 +43,7 @@ public class SubscriptionOrderProcessorTest {
 
   private static final String APPORG_CODE = "apporg_code";
   private static final String COMPANY_UUID = "company_uuid";
-  private static final Long MAX_USERS = 42L;
+  private static final String SUBSCRIPTION_TYPE = MEDIUM.toString();
   private static final String COMPANY_NAME = "company_name";
   private static final String COMPANY_COUNTRY = "company_country";
 
@@ -76,7 +79,7 @@ public class SubscriptionOrderProcessorTest {
     assumeCompanyDoesNotExist();
 
     // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionOrder(COMPANY_UUID, MAX_USERS));
+    AppDirectApiResponse response = processor.process(aSubscriptionOrder(COMPANY_UUID, SUBSCRIPTION_TYPE));
 
     // Verify
     assertThat(response.isSuccess(), is(true));
@@ -84,27 +87,27 @@ public class SubscriptionOrderProcessorTest {
     assertThat(response.getUserIdentifier(), is(APPUSER_CODE));
     assertThat(response.getErrorCode(), is(nullValue()));
     verify(appOrgRepository).findByMarketIdentifier(eq(COMPANY_UUID));
-    verifySaveAppOrgHasInteractions(MAX_USERS);
+    verifySaveAppOrgHasInteractions(SUBSCRIPTION_TYPE);
     verifySaveAppUserHasInteractions();
   }
 
   @Test
-  public void can_subscribe_with_no_max_users() throws Exception {
+  public void when_invalid_edition_code__should_return_bad_response() throws Exception {
 
     // Given
     assumeCompanyDoesNotExist();
 
     // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionOrder(COMPANY_UUID, null));
+    AppDirectApiResponse response = processor.process(aSubscriptionOrder(COMPANY_UUID, "SUPERPONY"));
 
     // Verify
-    assertThat(response.isSuccess(), is(true));
-    assertThat(response.getAccountIdentifier(), is(APPORG_CODE));
-    assertThat(response.getUserIdentifier(), is(APPUSER_CODE));
-    assertThat(response.getErrorCode(), is(nullValue()));
+    assertThat(response.isSuccess(), is(false));
+    assertThat(response.getAccountIdentifier(), is(nullValue()));
+    assertThat(response.getUserIdentifier(), is(nullValue()));
+    assertThat(response.getErrorCode(), is(CONFIGURATION_ERROR));
     verify(appOrgRepository).findByMarketIdentifier(eq(COMPANY_UUID));
-    verifySaveAppOrgHasInteractions(null);
-    verifySaveAppUserHasInteractions();
+    verifySaveAppOrgHasNoInteractions();
+    verifySaveAppUserHasNoInteractions();
   }
 
   @Test
@@ -114,7 +117,7 @@ public class SubscriptionOrderProcessorTest {
     assumeCompanyDoesExist();
 
     // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionOrder(COMPANY_UUID, MAX_USERS));
+    AppDirectApiResponse response = processor.process(aSubscriptionOrder(COMPANY_UUID, SUBSCRIPTION_TYPE));
 
     // Verify
     assertThat(response.isSuccess(), is(false));
@@ -130,7 +133,7 @@ public class SubscriptionOrderProcessorTest {
     verify(appOrgRepository, never()).save(any(AppOrg.class));
   }
 
-  private void verifySaveAppOrgHasInteractions(Long expectedMaxUsers) {
+  private void verifySaveAppOrgHasInteractions(String expectedSubscriptionType) {
 
     verify(appOrgRepository).save(appOrgCaptor.capture());
     AppOrg capturedAppOrg = appOrgCaptor.getValue();
@@ -138,7 +141,7 @@ public class SubscriptionOrderProcessorTest {
     assertThat(capturedAppOrg.getCode(), is(APPORG_CODE));
     assertThat(capturedAppOrg.getMarketIdentifier(), is(COMPANY_UUID));
     assertThat(capturedAppOrg.getActive(), is(true));
-    assertThat(capturedAppOrg.getMaxUsers(), is(expectedMaxUsers));
+    assertThat(capturedAppOrg.getSubscriptionType(), is(SubscriptionType.valueOf(expectedSubscriptionType)));
     assertThat(capturedAppOrg.getName(), is(COMPANY_NAME));
     assertThat(capturedAppOrg.getCountry(), is(COMPANY_COUNTRY));
   }
@@ -172,12 +175,7 @@ public class SubscriptionOrderProcessorTest {
         .thenReturn(new AppOrg());
   }
 
-  public AppDirectNotification aSubscriptionOrder(String companyUuid, Long numberOfUsers) {
-
-    List<Item> items = new ArrayList<>(1);
-    if (numberOfUsers != null) {
-      items.add(Item.builder().unit("USER").quantity(numberOfUsers.toString()).build());
-    }
+  public AppDirectNotification aSubscriptionOrder(String companyUuid, String editionCode) {
 
     return AppDirectNotification.builder()
         .type(SUBSCRIPTION_ORDER)
@@ -195,7 +193,8 @@ public class SubscriptionOrderProcessorTest {
                 .name(COMPANY_NAME)
                 .country(COMPANY_COUNTRY).build())
             .order(Order.builder()
-                .items(items).build()).build())
+                .editionCode(editionCode)
+                .items(Arrays.asList(Item.builder().unit("USER").quantity("1").build())).build()).build())
         .build();
   }
 }

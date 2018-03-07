@@ -10,10 +10,9 @@ import com.github.pzn.hellomarket.integration.appdirect.event.Account;
 import com.github.pzn.hellomarket.integration.appdirect.event.AppDirectNotification;
 import com.github.pzn.hellomarket.integration.appdirect.event.EventType;
 import com.github.pzn.hellomarket.integration.appdirect.event.Order;
-import com.github.pzn.hellomarket.integration.appdirect.event.Order.Item;
 import com.github.pzn.hellomarket.model.entity.AppOrg;
+import com.github.pzn.hellomarket.model.entity.SubscriptionType;
 import com.github.pzn.hellomarket.repository.AppOrgRepository;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -43,9 +42,11 @@ public class SubscriptionChangeProcessor implements AppDirectNotificationProcess
           .build();
     }
 
-    Long newUserQuantity = retrieveUserQuantity(notification.getPayload().getOrder());
-    if (newUserQuantity == null) {
-      log.warn("Unrecognized Edition(code:{}) from partner '{}' (edition has no number of users)",
+    SubscriptionType newSubscriptionType;
+    try {
+      newSubscriptionType = retrieveNewSubscriptionType(notification.getPayload().getOrder());
+    } catch (Exception e) {
+      log.warn("Unrecognized Edition(code:{}) from partner '{}'",
           notification.getPayload().getOrder().getEditionCode(), notification.getMarketplace().getPartner());
 
       return AppDirectApiResponse.builder()
@@ -55,7 +56,7 @@ public class SubscriptionChangeProcessor implements AppDirectNotificationProcess
           .build();
     }
 
-    if (newUserQuantity < appOrg.getAppUsers().size()) {
+    if (newSubscriptionType.getMaxUsers() < appOrg.getAppUsers().size()) {
       log.info("Organization(code:{}, marketIdentifier:{}) from partner '{}' attempted to change subscription, but its userbase won't fit in the new one",
           appOrg.getCode(), appOrg.getMarketIdentifier(), notification.getMarketplace().getPartner());
 
@@ -66,12 +67,16 @@ public class SubscriptionChangeProcessor implements AppDirectNotificationProcess
           .build();
     }
 
-    updateAppOrgWithNewMaxUsers(appOrg, newUserQuantity);
+    updateAppOrgWithNewSubscriptionType(appOrg, newSubscriptionType);
 
     return AppDirectApiResponse.builder()
         .success(true)
         .accountIdentifier(appOrg.getCode())
         .build();
+  }
+
+  private SubscriptionType retrieveNewSubscriptionType(Order order) {
+    return SubscriptionType.valueOf(order.getEditionCode());
   }
 
   private AppOrg getAppOrg(Account account) {
@@ -83,18 +88,8 @@ public class SubscriptionChangeProcessor implements AppDirectNotificationProcess
     return SUBSCRIPTION_CHANGE;
   }
 
-  private Long retrieveUserQuantity(Order order) {
-    Optional<Item> item = order.getItems().stream()
-        .filter(i -> "USER".equals(i.getUnit()))
-        .findFirst();
-    if (item.isPresent()) {
-      return Long.parseLong(item.get().getQuantity());
-    }
-    return null;
-  }
-
-  private void updateAppOrgWithNewMaxUsers(AppOrg appOrg, Long newUserQuantity) {
-    appOrg.setMaxUsers(newUserQuantity);
+  private void updateAppOrgWithNewSubscriptionType(AppOrg appOrg, SubscriptionType newSubscriptionType) {
+    appOrg.setSubscriptionType(newSubscriptionType);
     appOrgRepository.save(appOrg);
   }
 }
