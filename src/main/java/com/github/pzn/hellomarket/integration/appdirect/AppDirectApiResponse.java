@@ -1,9 +1,9 @@
 package com.github.pzn.hellomarket.integration.appdirect;
 
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 
-@Data
+@Getter
 @Builder
 public class AppDirectApiResponse {
 
@@ -12,4 +12,20 @@ public class AppDirectApiResponse {
   private String message;
   private String accountIdentifier;
   private String userIdentifier;
+
+  public static AppDirectApiResponse success() {
+    return success(null);
+  }
+
+  public static AppDirectApiResponse success(String accountIdentifier) {
+    return success(accountIdentifier, null);
+  }
+
+  public static AppDirectApiResponse success(String accountIdentifier, String userIdentifier) {
+    return AppDirectApiResponse.builder()
+        .success(true)
+        .accountIdentifier(accountIdentifier)
+        .userIdentifier(userIdentifier)
+        .build();
+  }
 }

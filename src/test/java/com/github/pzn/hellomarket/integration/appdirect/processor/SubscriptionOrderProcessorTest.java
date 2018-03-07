@@ -5,6 +5,7 @@ import static com.github.pzn.hellomarket.integration.appdirect.ErrorCode.USER_AL
 import static com.github.pzn.hellomarket.integration.appdirect.event.EventType.SUBSCRIPTION_ORDER;
 import static com.github.pzn.hellomarket.model.entity.SubscriptionType.MEDIUM;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -73,7 +74,7 @@ public class SubscriptionOrderProcessorTest {
   }
 
   @Test
-  public void can_subscribe() throws Exception {
+  public void can_subscribe_order() throws Exception {
 
     // Given
     assumeCompanyDoesNotExist();
@@ -86,47 +87,70 @@ public class SubscriptionOrderProcessorTest {
     assertThat(response.getAccountIdentifier(), is(APPORG_CODE));
     assertThat(response.getUserIdentifier(), is(APPUSER_CODE));
     assertThat(response.getErrorCode(), is(nullValue()));
+    assertThat(response.getMessage(), is(nullValue()));
+
     verify(appOrgRepository).findByMarketIdentifier(eq(COMPANY_UUID));
     verifySaveAppOrgHasInteractions(SUBSCRIPTION_TYPE);
     verifySaveAppUserHasInteractions();
   }
 
   @Test
-  public void when_invalid_edition_code__should_return_bad_response() throws Exception {
-
-    // Given
-    assumeCompanyDoesNotExist();
-
-    // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionOrder(COMPANY_UUID, "SUPERPONY"));
-
-    // Verify
-    assertThat(response.isSuccess(), is(false));
-    assertThat(response.getAccountIdentifier(), is(nullValue()));
-    assertThat(response.getUserIdentifier(), is(nullValue()));
-    assertThat(response.getErrorCode(), is(CONFIGURATION_ERROR));
-    verify(appOrgRepository).findByMarketIdentifier(eq(COMPANY_UUID));
-    verifySaveAppOrgHasNoInteractions();
-    verifySaveAppUserHasNoInteractions();
-  }
-
-  @Test
-  public void when_company_already_subscribed__should_return_bad_response() throws Exception {
+  public void cannot_subscribe_order_when_company_already_subscribed() throws Exception {
 
     // Given
     assumeCompanyDoesExist();
 
     // Execute
-    AppDirectApiResponse response = processor.process(aSubscriptionOrder(COMPANY_UUID, SUBSCRIPTION_TYPE));
+    try {
+      processor.process(aSubscriptionOrder(COMPANY_UUID, SUBSCRIPTION_TYPE));
+    } catch (NotificationProcessorException e) {
 
-    // Verify
-    assertThat(response.isSuccess(), is(false));
-    assertThat(response.getAccountIdentifier(), is(COMPANY_UUID));
-    assertThat(response.getUserIdentifier(), is(nullValue()));
-    assertThat(response.getErrorCode(), is(USER_ALREADY_EXISTS));
-    verify(appOrgRepository).findByMarketIdentifier(eq(COMPANY_UUID));
-    verifySaveAppOrgHasNoInteractions();
-    verifySaveAppUserHasNoInteractions();
+      // Verify
+      assertThat(e.getErrorCode(), is(USER_ALREADY_EXISTS));
+      assertThat(e.getAccountIdentifier(), is(APPORG_CODE));
+      assertThat(e.getUserIdentifier(), is(nullValue()));
+      assertThat(e.getMessage(), is(notNullValue()));
+
+      verify(appOrgRepository).findByMarketIdentifier(eq(COMPANY_UUID));
+      verifySaveAppOrgHasNoInteractions();
+      verifySaveAppUserHasNoInteractions();
+      return;
+    }
+    fail("should throw a NotificationProcessorException!");
+  }
+
+  @Test
+  public void cannot_subscribe_order_when_edition_code_not_available_in_payload() throws Exception {
+    cannot_subscribe_order_when_edition_code_is(null);
+  }
+
+  @Test
+  public void cannot_subscribe_order_when_unrecognized_edition_code() throws Exception {
+    cannot_subscribe_order_when_edition_code_is("SUPERPONY");
+  }
+
+  public void cannot_subscribe_order_when_edition_code_is(String editionCode) throws Exception {
+
+    // Given
+    assumeCompanyDoesNotExist();
+
+    // Execute
+    try {
+      processor.process(aSubscriptionOrder(COMPANY_UUID, editionCode));
+    } catch (NotificationProcessorException e) {
+
+      // Verify
+      assertThat(e.getErrorCode(), is(CONFIGURATION_ERROR));
+      assertThat(e.getAccountIdentifier(), is(nullValue()));
+      assertThat(e.getUserIdentifier(), is(nullValue()));
+      assertThat(e.getMessage(), is(notNullValue()));
+
+      verify(appOrgRepository).findByMarketIdentifier(eq(COMPANY_UUID));
+      verifySaveAppOrgHasNoInteractions();
+      verifySaveAppUserHasNoInteractions();
+      return;
+    }
+    fail("should throw a NotificationProcessorException!");
   }
 
   private void verifySaveAppOrgHasNoInteractions() {
@@ -172,7 +196,7 @@ public class SubscriptionOrderProcessorTest {
 
   private void assumeCompanyDoesExist() {
     when(appOrgRepository.findByMarketIdentifier(COMPANY_UUID))
-        .thenReturn(new AppOrg());
+        .thenReturn(AppOrg.builder().code(APPORG_CODE).build());
   }
 
   public AppDirectNotification aSubscriptionOrder(String companyUuid, String editionCode) {
@@ -194,7 +218,8 @@ public class SubscriptionOrderProcessorTest {
                 .country(COMPANY_COUNTRY).build())
             .order(Order.builder()
                 .editionCode(editionCode)
-                .items(Arrays.asList(Item.builder().unit("USER").quantity("1").build())).build()).build())
+                .items(Arrays.asList(Item.builder().unit("USER").quantity("1").build())).build())
+            .build())
         .build();
   }
 }

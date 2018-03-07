@@ -27,26 +27,24 @@ public class SubscriptionCancelProcessor implements AppDirectNotificationProcess
   @Override
   public AppDirectApiResponse process(AppDirectNotification notification) throws NotificationProcessorException {
 
-    AppOrg appOrg = getAppOrg(notification.getPayload().getAccount());
-    if (appOrg == null) {
-      log.warn("AppOrg(code:{}) from partner '{}' attempted to cancel subscription, but not found in database",
-          notification.getPayload().getAccount().getAccountIdentifier(), notification.getMarketplace().getPartner());
-      return AppDirectApiResponse.builder()
-          .success(false)
-          .errorCode(ACCOUNT_NOT_FOUND)
-          .build();
-    }
+    AppOrg appOrg = retrieveAppOrg(notification.getPayload().getAccount());
 
     removeAppOrg(appOrg);
 
-    return AppDirectApiResponse.builder()
-        .success(true)
-        .accountIdentifier(appOrg.getCode())
-        .build();
+    return AppDirectApiResponse.success(appOrg.getCode());
   }
 
-  private AppOrg getAppOrg(Account account) {
-    return appOrgRepository.findByCode(account.getAccountIdentifier());
+  private AppOrg retrieveAppOrg(Account account) {
+
+    String accountIdentifier = account.getAccountIdentifier();
+
+    AppOrg appOrg = appOrgRepository.findByCode(accountIdentifier);
+    if (appOrg != null) {
+      return appOrg;
+    }
+
+    throw new NotificationProcessorException(ACCOUNT_NOT_FOUND, accountIdentifier, null,
+        String.format("Cannot find company(accountIdentifier:%s)", accountIdentifier));
   }
 
   private void removeAppOrg(AppOrg appOrg) {

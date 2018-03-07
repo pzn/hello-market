@@ -27,7 +27,8 @@ public class SubscriptionNoticeProcessor_ReactivatedNoticeTypeBaseTest extends S
   }
 
   @Test
-  public void can_activate_an_deactivated_apporg_on_subscription_notice_of_type_reactivated() throws Exception {
+  public void can_activate_an_deactivated_apporg_on_subscription_notice_of_type_reactivated()
+      throws Exception {
 
     // Given
     assumeCompanyDoesExist(false);
@@ -36,16 +37,15 @@ public class SubscriptionNoticeProcessor_ReactivatedNoticeTypeBaseTest extends S
     AppDirectApiResponse response = processor.process(aSubscriptionNotice(APPORG_CODE, getNoticeType()));
 
     // Verify
-    assertThat(response.isSuccess(), is(true));
-    assertThat(response.getAccountIdentifier(), is(APPORG_CODE));
-    assertThat(response.getErrorCode(), is(nullValue()));
+    verifyApiResponse(response);
     verify(appOrgRepository).findByCode(eq(APPORG_CODE));
     verify(appOrgRepository, never()).delete(any(AppOrg.class));
     verify(appOrgRepository).changeActiveStatus(ID, true);
   }
 
   @Test
-  public void noop_on_activated_apporg_on_subscription_notice_of_type_reactivated() throws Exception {
+  public void noop_on_activated_apporg_on_subscription_notice_of_type_reactivated()
+      throws Exception {
 
     // Given
     assumeCompanyDoesExist(true);
@@ -54,9 +54,7 @@ public class SubscriptionNoticeProcessor_ReactivatedNoticeTypeBaseTest extends S
     AppDirectApiResponse response = processor.process(aSubscriptionNotice(APPORG_CODE, getNoticeType()));
 
     // Verify
-    assertThat(response.isSuccess(), is(true));
-    assertThat(response.getAccountIdentifier(), is(APPORG_CODE));
-    assertThat(response.getErrorCode(), is(nullValue()));
+    verifyApiResponse(response);
     verify(appOrgRepository).findByCode(eq(APPORG_CODE));
     verify(appOrgRepository, never()).delete(any(AppOrg.class));
     verify(appOrgRepository, never()).changeActiveStatus(anyLong(), anyBoolean());

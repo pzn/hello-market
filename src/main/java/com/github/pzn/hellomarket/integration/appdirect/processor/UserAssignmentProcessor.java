@@ -39,63 +39,57 @@ public class UserAssignmentProcessor implements AppDirectNotificationProcessor {
   @Override
   public AppDirectApiResponse process(AppDirectNotification notification) throws NotificationProcessorException {
 
-    AppOrg appOrg = getAppOrg(notification.getPayload().getAccount());
-    if (appOrg == null) {
-      log.warn("Organization(marketIdentifier:{}) from partner '{}' attempted to assign user, but organization not found in database",
-          notification.getPayload().getAccount().getAccountIdentifier(), notification.getMarketplace().getPartner());
-      return AppDirectApiResponse.builder()
-          .success(false)
-          .errorCode(ACCOUNT_NOT_FOUND)
-          .build();
-    }
+    AppOrg appOrg = retrieveAppOrg(notification.getPayload().getAccount());
 
-    if(companyCannotAssignNewUsers(appOrg)) {
-      log.warn("AppOrg(marketIdentifier:{}) from partner '{}' cannot assign new users (max limit)",
-          appOrg.getMarketIdentifier(), notification.getMarketplace().getPartner());
-
-      return AppDirectApiResponse.builder()
-          .success(false)
-          .accountIdentifier(appOrg.getCode())
-          .errorCode(MAX_USERS_REACHED)
-          .build();
-    }
+    companyCanAssignNewUsers(appOrg);
 
     User assignedUser = notification.getPayload().getUser();
 
-    AppUser appUser = getAppUser(appOrg, assignedUser);
-    if (appUser != null) {
-      log.warn("AppUser(marketIdentifier:{}) from partner '{}' is already subscribed with AppOrg(marketIdentifier:{})",
-          appUser.getMarketIdentifier(), notification.getMarketplace().getPartner(), appOrg.getMarketIdentifier());
-
-      return AppDirectApiResponse.builder()
-          .success(false)
-          .accountIdentifier(appOrg.getCode())
-          .userIdentifier(appUser.getCode())
-          .errorCode(USER_ALREADY_EXISTS)
-          .build();
-    }
+    userMustNotExist(appOrg, assignedUser);
 
     AppUser newAppUser = createAppUser(assignedUser, appOrg);
 
     createNewUser(newAppUser);
 
-    return AppDirectApiResponse.builder()
-        .success(true)
-        .accountIdentifier(appOrg.getCode())
-        .userIdentifier(newAppUser.getCode())
-        .build();
+    return AppDirectApiResponse.success(appOrg.getCode(), newAppUser.getCode());
   }
 
-  private AppOrg getAppOrg(Account account) {
-    return appOrgRepository.findByCodeFetchUsers(account.getAccountIdentifier());
+  private AppOrg retrieveAppOrg(Account account) {
+
+    String accountIdentifier = account.getAccountIdentifier();
+
+    AppOrg appOrg = appOrgRepository.findByCodeFetchUsers(accountIdentifier);
+    if (appOrg != null) {
+      return appOrg;
+    }
+
+    throw new NotificationProcessorException(ACCOUNT_NOT_FOUND, accountIdentifier, null,
+        String.format("Cannot find company(accountIdentifier:%s)", accountIdentifier));
   }
 
-  private AppUser getAppUser(AppOrg appOrg, User user) {
-    return appUserRepository.findByMarketIdentifierAndAppOrgCode(user.getUuid(), appOrg.getCode());
+  private void companyCanAssignNewUsers(AppOrg appOrg) {
+
+    if (appOrg.getAppUsers().size() + 1 < appOrg.getSubscriptionType().getMaxUsers()) {
+      return;
+    }
+
+    throw new NotificationProcessorException(MAX_USERS_REACHED, appOrg.getCode(), null,
+        String.format("Company(accountIdentifier:%s) cannot allow more users", appOrg.getCode()));
   }
 
-  private boolean companyCannotAssignNewUsers(AppOrg appOrg) {
-    return appOrg.getSubscriptionType().getMaxUsers() < appOrg.getAppUsers().size() + 1;
+  private void userMustNotExist(AppOrg appOrg, User user) {
+
+    AppUser appUser = appUserRepository
+        .findByMarketIdentifierAndAppOrgCode(user.getUuid(), appOrg.getCode());
+    if (appUser == null) {
+      return;
+    }
+
+    throw new NotificationProcessorException(USER_ALREADY_EXISTS, appOrg.getCode(),
+        appUser.getCode(),
+        String.format(
+            "User(userIdentifier:%s) is already subscribed with the subscription of company(accountIdentifier:%s)",
+            appOrg.getCode(), appUser.getCode()));
   }
 
   private AppUser createAppUser(User assignedUser, AppOrg appOrg) {
