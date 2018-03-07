@@ -1,4 +1,4 @@
-# # http://docs.spring.io/spring-boot/docs/1.5.9.RELEASE/reference/html/common-application-properties.html
+# http://docs.spring.io/spring-boot/docs/1.5.9.RELEASE/reference/html/common-application-properties.html
 spring:
   main:
     banner-mode: "off"
@@ -16,8 +16,6 @@ spring:
     deserialization:
       fail-on-unknown-properties: false
     default-property-inclusion: non_null
-security:
-  ignored: /**
 
 appdirect:
   consumer_key: consumer_key
