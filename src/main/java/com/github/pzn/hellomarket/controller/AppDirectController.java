@@ -1,5 +1,6 @@
 package com.github.pzn.hellomarket.controller;
 
+import static com.github.pzn.hellomarket.controller.AppDirectController.APPDIRECT_ROOT_PATH;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import com.github.pzn.hellomarket.integration.appdirect.AppDirectApiResponse;
@@ -15,9 +16,11 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping(value = "/appdirect", produces = APPLICATION_JSON_VALUE)
+@RequestMapping(value = APPDIRECT_ROOT_PATH, produces = APPLICATION_JSON_VALUE)
 @Slf4j
 public class AppDirectController {
+
+  public static final String APPDIRECT_ROOT_PATH = "/appdirect";
 
   private AppDirectFetchEventService fetchEventService;
   private NotificationProcessorService processNotificationService;

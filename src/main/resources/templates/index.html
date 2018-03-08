@@ -9,13 +9,47 @@
 
 <div class="container">
   <div th:replace="_common :: header"></div>
-  <table>
-    <th:block th:each="appUser : ${appUsers}">
-      <tr th:object="${appUser}">
-        <td th:text="*{code}"/>
-      </tr>
-    </th:block>
-  </table>
+  <th:block th:each="organization : ${organizations}">
+    <div class="row">
+      <div class="four columns">
+        <table th:object="${organization}">
+          <tr>
+            <td>Organization</td>
+            <td th:text="*{name}">[NAME]</td>
+          </tr>
+          <tr>
+            <td>Subscription Type</td>
+            <td th:text="*{subscriptionType}">[SUBSCRIPTION_TYPE]</td>
+          </tr>
+          <tr>
+            <td>Users</td>
+            <td th:text="${#lists.size(organization.appUsers)} + '/' + *{subscriptionType.maxUsers}">[NUMBER_OF_USERS]/[MAX]</td>
+          </tr>
+          <tr>
+            <td>Hello Market Code</td>
+            <td th:text="*{code}">[HELLO_MARKET_CODE]</td>
+          </tr>
+          <tr>
+            <td>AppDirect UUID</td>
+            <td th:text="*{marketIdentifier}">[APPDIRECT_ACCOUNT_UUID]</td>
+          </tr>
+          <tr>
+            <td>Country</td>
+            <td th:text="*{country}">[Country]</td>
+          </tr>
+          <tr>
+            <td>Active?</td>
+            <td th:text="*{active} ? 'Yes' : 'No'">[IS_ACTIVE]</td>
+          </tr>
+        </table>
+      </div>
+      <div class="eight columns">
+        <th:block th:each="user, iterStat : ${organization.appUsers}">
+          <span th:text="*{user.firstName} + ' ' + *{user.lastName} + (!${iterStat.last} ? ', ' : '')">[NAME]</span>
+        </th:block>
+      </div>
+    </div>
+  </th:block>
   <div th:replace="_common :: footer"></div>
 </div>
 </body>

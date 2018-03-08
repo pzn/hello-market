@@ -32,7 +32,7 @@ public class AppDirectController_OAuthTest {
     private static final String URL_PARAM = "https://www.appdirect.com/api/integration/v1/events/00000000-0000-0000-0000-000000000000";
 
     @Autowired
-    private FilterChainProxy filterSecurityChainProxy;
+    private FilterChainProxy securityFilterChain;
     @Autowired
     private ProtectedResourceDetails appDirectOAuthResourceDetails;
 
@@ -41,8 +41,8 @@ public class AppDirectController_OAuthTest {
     @Before
     public void before() throws Exception {
         mockMvc = standaloneSetup(new AppDirectTestController())
-                .addFilter(filterSecurityChainProxy, "/*")
-                .build();
+            .addFilter(securityFilterChain, "/*")
+            .build();
     }
 
     @Test
@@ -50,13 +50,13 @@ public class AppDirectController_OAuthTest {
 
         // Given
         MockHttpServletRequest request = get(PATH)
-                .param("url", URL_PARAM)
-                .buildRequest(null);
+            .param("url", URL_PARAM)
+            .buildRequest(null);
         request.addHeader(AUTHORIZATION, anOAuthAuthorizationHeader(request, of("url", URL_PARAM)));
 
         // Execute & Verify
         mockMvc.perform(servletContext -> request)
-                .andExpect(status().isOk());
+            .andExpect(status().isOk());
     }
 
     @Test
@@ -64,36 +64,36 @@ public class AppDirectController_OAuthTest {
 
         // Execute & Verify
         mockMvc.perform(get(PATH)
-                                .header(AUTHORIZATION, anInvalidOAuthAuthorizationHeader())
-                                .param("url", URL_PARAM))
-                .andExpect(status().isUnauthorized());
+            .header(AUTHORIZATION, anInvalidOAuthAuthorizationHeader())
+            .param("url", URL_PARAM))
+            .andExpect(status().isUnauthorized());
     }
 
     @Test
-    public void return_400_when_oauth_authorization_is_absent() throws Exception {
+    public void return_403_when_oauth_authorization_is_absent() throws Exception {
 
         // Execute & Verify
         mockMvc.perform(get(PATH).param("url", URL_PARAM))
-                .andExpect(status().isBadRequest());
+            .andExpect(status().isForbidden());
     }
 
     private String anOAuthAuthorizationHeader(HttpServletRequest request, Map<String, String> params) throws Exception {
         return new CoreOAuthConsumerSupport().getAuthorizationHeader(appDirectOAuthResourceDetails,
-                                                                     null,
-                                                                     new URL(request.getRequestURL().toString()),
-                                                                     request.getMethod(),
-                                                                     params);
+            null,
+            new URL(request.getRequestURL().toString()),
+            request.getMethod(),
+            params);
     }
 
     private String anInvalidOAuthAuthorizationHeader() {
         return "Oauth "
-               + "oauth_callback=\"callback\","
-               + "oauth_consumer_key=\"" + appDirectOAuthResourceDetails.getConsumerKey() + "\","
-               + "oauth_nonce=\"0\","
-               + "oauth_signature_method=\"HMAC-SHA1\","
-               + "oauth_timestamp=\"0\","
-               + "oauth_version=\"1.0\","
-               + "oauth_signature=\"badly-forged-signature\",";
+            + "oauth_callback=\"callback\","
+            + "oauth_consumer_key=\"" + appDirectOAuthResourceDetails.getConsumerKey() + "\","
+            + "oauth_nonce=\"0\","
+            + "oauth_signature_method=\"HMAC-SHA1\","
+            + "oauth_timestamp=\"0\","
+            + "oauth_version=\"1.0\","
+            + "oauth_signature=\"badly-forged-signature\",";
     }
 
     @RestController

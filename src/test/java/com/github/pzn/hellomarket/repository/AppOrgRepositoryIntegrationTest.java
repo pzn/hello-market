@@ -3,10 +3,12 @@ package com.github.pzn.hellomarket.repository;
 import static com.github.pzn.hellomarket.model.entity.SubscriptionType.SMALL;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.Assert.assertThat;
 
 import com.github.pzn.hellomarket.model.entity.AppOrg;
 import com.github.pzn.hellomarket.model.entity.SubscriptionType;
+import java.util.Set;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,7 +42,9 @@ public class AppOrgRepositoryIntegrationTest {
     jdbcTemplate.update("INSERT INTO apporg(id, code, market_identifier, active, name, country, subscription_type) VALUES(?, ?, ?, ?, ?, ?, ?)",
         new Object[]{ID, CODE, MARKET_IDENTIFIER, INITIAL_STATUS, NAME, COUNTRY, SUBSCRIPTION_TYPE.toString()});
     jdbcTemplate.update("INSERT INTO appuser VALUES(?, ?, ?, ?, ?, ?, ?)",
-        new Object[]{3000L, "appuser_code", "appuser_market_identifier", "first_name", "last_name", "open_id_url", ID});
+        new Object[]{3000L, "appuser_code_1", "appuser_market_identifier_1", "first_name_1", "last_name_1", "open_id_url_1", ID});
+    jdbcTemplate.update("INSERT INTO appuser VALUES(?, ?, ?, ?, ?, ?, ?)",
+        new Object[]{3001L, "appuser_code_2", "appuser_market_identifier_2", "first_name_2", "last_name_2", "open_id_url_2", ID});
   }
 
   @Test
@@ -65,6 +69,17 @@ public class AppOrgRepositoryIntegrationTest {
     assertThat(appOrgCount, is(0));
     int appUserCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM appuser", Integer.class);
     assertThat(appUserCount, is(0));
+  }
+
+  @Test
+  public void can_findAllFetchUsers() throws Exception {
+
+    // Execute
+    Set<AppOrg> appOrgs = appOrgRepository.findAllFetchUsers();
+
+    // Verify
+    assertThat(appOrgs, hasSize(1));
+    assertThat(appOrgs.iterator().next().getAppUsers(), hasSize(2));
   }
 
   @Test(expected = DataAccessException.class)

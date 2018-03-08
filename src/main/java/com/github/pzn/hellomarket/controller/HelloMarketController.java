@@ -1,7 +1,5 @@
 package com.github.pzn.hellomarket.controller;
 
-import static javax.persistence.FetchType.EAGER;
-
 import com.github.pzn.hellomarket.service.AppOrgService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -22,7 +20,7 @@ public class HelloMarketController {
 
   @GetMapping
   public String index(Model model) {
-    model.addAttribute("appUsers", appOrgService.findAll(EAGER));
+    model.addAttribute("organizations", appOrgService.findAll());
     return "index";
   }
 }

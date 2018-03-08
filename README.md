@@ -6,6 +6,18 @@ what is it?
 ===========
 A (dummy) web app integrated with AppDirect, using the [AppDistribution API](https://help.appdirect.com/appdistrib/appdistribution.html).
 
+features
+========
+- Subscription event notifications
+  - SUBSCRIPTION_ORDER
+  - SUBSCRIPTION_CHANGE
+  - SUBSCRIPTION_CANCEL
+  - SUBSCRIPTION_NOTICE
+- User events
+  - USER_ASSIGNMENT
+  - USER_UNASSIGNMENT
+- OAuth signature verification on the AppDirect issued API requests
+
 live demo
 =========
 http://hellomarket.herokuapp.com
@@ -26,6 +38,18 @@ refer to [project's application.yml](./src/main/resources/application.yml) for d
 locally, but in docker
 ======================
 because why not.
+
+## prerequisites
+- jdk8+
+- docker-engine
+
+first, build the project:
+
+```
+./mvnw package
+```
+
+this will also build the docker image. then:
 
 ```
 docker run --name postgres -p 5432:5432 \
