@@ -18,9 +18,13 @@ features
   - USER_UNASSIGNMENT
 - OAuth signature verification on the AppDirect issued API requests
 
+The webapp stores company subscriptions (**AppOrg**), as well as its assigned users (**AppUser**) from the AppDirect's Marketplace. It also serves a simple homepage to show the current subscriptions.
+
 live demo
 =========
 http://hellomarket.herokuapp.com
+
+Currently deployed on a free-tier, it hibernates after a long inactivity. Please before interacting with it from the marketplace, visit the homepage to wake it up!
 
 launch it locally?
 ==================
