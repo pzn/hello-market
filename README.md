@@ -22,7 +22,7 @@ The webapp stores company subscriptions (**AppOrg**), as well as its assigned us
 
 live demo
 =========
-http://hellomarket.herokuapp.com
+https://hellomarket.herokuapp.com
 
 Currently deployed on a free-tier, it hibernates after a long inactivity. Please before interacting with it from the marketplace, visit the homepage to wake it up!
 
